@@ -101,16 +101,16 @@ export default function Login() {
             <Activity className="h-7 w-7 text-white" />
           </div>
           <h1
-            className="text-3xl font-extrabold tracking-tight text-center"
-            style={{ color: isLight ? '#0F172A' : '#F8FAFC', letterSpacing: '-0.02em' }}
+            className="text-4xl font-extrabold tracking-tight text-center"
+            style={{ color: isLight ? '#0F172A' : '#F8FAFC', letterSpacing: '-0.03em' }}
           >
-            USER LOGIN
+            Ware<span style={{ color: '#3B82F6' }}>Mind</span>
           </h1>
           <p
-            className="text-xs font-semibold tracking-widest uppercase mt-1 text-center"
+            className="text-xs font-semibold tracking-widest uppercase mt-1.5 text-center"
             style={{ color: isLight ? '#3B82F6' : '#60A5FA' }}
           >
-            Warehouse Management System
+            Intelligent Warehouse Operations
           </p>
         </div>
 

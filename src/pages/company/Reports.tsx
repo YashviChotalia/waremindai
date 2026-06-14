@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useWarehouseStore } from '../../store/useWarehouseStore';
 import { Card } from '../../components/ui/Card';
 import { Calendar, FileDown, Activity, DollarSign, Database } from 'lucide-react';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts';
 
 interface ReportsProps {
   mode: 'company' | 'warehouse';
@@ -277,16 +277,51 @@ export default function Reports({ mode }: ReportsProps) {
 
         <div className="h-72 w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={reportData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
-              <XAxis dataKey="date" stroke="#64748B" fontSize={10} className="font-mono" />
-              <YAxis stroke="#64748B" fontSize={10} className="font-mono" />
-              <Tooltip
-                contentStyle={{ backgroundColor: '#0F172A', borderColor: 'rgba(255,255,255,0.1)', color: '#F8FAFC' }}
-                labelClassName="text-slate-400 font-mono"
+            <BarChart data={reportData} margin={{ top: 10, right: 16, left: 8, bottom: 0 }} barCategoryGap="28%" barGap={3}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.08)" />
+              <XAxis dataKey="date" stroke="#64748B" fontSize={10} className="font-mono" tick={{ fill: '#94A3B8' }} />
+              {/* Left Y-axis — Throughput Volume (units) */}
+              <YAxis
+                yAxisId="left"
+                orientation="left"
+                stroke="#64748B"
+                fontSize={10}
+                tick={{ fill: '#94A3B8' }}
+                tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)}
+                width={40}
               />
-              <Bar dataKey="throughput" fill="#3B82F6" name="Volume (Units)" radius={[2, 2, 0, 0]} />
-              <Bar dataKey="savings" fill="#10B981" name="Savings ($)" radius={[2, 2, 0, 0]} />
+              {/* Right Y-axis — Savings ($) */}
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                stroke="#64748B"
+                fontSize={10}
+                tick={{ fill: '#10B981' }}
+                tickFormatter={(v: number) => v >= 1000 ? `$${(v / 1000).toFixed(0)}k` : `$${v}`}
+                width={48}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: 'var(--bg-surface, #1E293B)',
+                  borderColor: 'rgba(255,255,255,0.08)',
+                  color: '#F8FAFC',
+                  borderRadius: 8,
+                  fontSize: 12,
+                }}
+                formatter={(value, name) => {
+                  const num = typeof value === 'number' ? value : Number(value ?? 0);
+                  return name === 'Savings ($)'
+                    ? [`$${num.toLocaleString()}`, name as string]
+                    : [`${num.toLocaleString()} units`, name as string];
+                }}
+                labelStyle={{ color: '#94A3B8', fontFamily: 'JetBrains Mono, monospace', marginBottom: 4 }}
+              />
+              <Legend
+                wrapperStyle={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', paddingTop: 8 }}
+                formatter={(value) => <span style={{ color: '#94A3B8' }}>{value}</span>}
+              />
+              <Bar yAxisId="left"  dataKey="throughput" fill="#3B82F6" name="Volume (units)" radius={[3, 3, 0, 0]} maxBarSize={52} />
+              <Bar yAxisId="right" dataKey="savings"    fill="#10B981" name="Savings ($)"   radius={[3, 3, 0, 0]} maxBarSize={52} />
             </BarChart>
           </ResponsiveContainer>
         </div>
