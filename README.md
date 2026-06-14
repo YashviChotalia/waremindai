@@ -4,13 +4,15 @@
 
 **Intelligent Warehouse Operations Platform**
 
-A full-stack, dual-portal warehouse intelligence dashboard built with React 19, TypeScript, and Tailwind CSS v4. Simulates real-time warehouse telemetry, AI-driven optimization recommendations, bottleneck detection, demand forecasting, and workforce analytics — all running entirely in the browser with zero backend.
+A full-stack, dual-portal warehouse intelligence dashboard. The frontend runs entirely in the browser with in-browser simulation engines. The production backend — built with FastAPI, PostgreSQL, ClickHouse, Redis, Kafka, and PyTorch — powers real-time telemetry, Process Mining, multi-agent RL, and demand forecasting for live warehouse deployments.
 
 [![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-6.0-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org)
 [![Vite](https://img.shields.io/badge/Vite-8.0-646CFF?style=flat-square&logo=vite)](https://vite.dev)
 [![TailwindCSS](https://img.shields.io/badge/TailwindCSS-4.0-06B6D4?style=flat-square&logo=tailwindcss)](https://tailwindcss.com)
-[![Zustand](https://img.shields.io/badge/Zustand-5.0-FF6B35?style=flat-square)](https://zustand-demo.pmnd.rs)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com)
+[![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=flat-square&logo=python)](https://python.org)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.4-EE4C2C?style=flat-square&logo=pytorch)](https://pytorch.org)
 
 </div>
 
@@ -285,6 +287,83 @@ When in Warehouse Manager mode, the header dropdown lets you switch between all 
 useEffect(() => {
   document.documentElement.classList.toggle('light', theme === 'light');
 }, [theme]);
+```
+
+---
+
+## Backend Architecture
+
+The production backend is located in [`backend/`](./backend/) and is fully dockerized.
+
+### Data Flow
+
+```
+WMS System → Kafka → Python Consumer → ClickHouse (event logs)
+                                     → PostgreSQL (operational data)
+                                     → Algorithm Engine (Celery task triggered)
+                                     → Redis Pub/Sub
+                                             ↓
+                                     WebSocket server (FastAPI)
+                                             ↓
+                                     React Frontend (Zustand updated live)
+```
+
+### Algorithm → Library Mapping
+
+| Algorithm | Library | Purpose |
+|---|---|---|
+| Alpha, Heuristics Miner, Inductive Miner, Genetic, Multi-Perspective, Conformance | **PM4Py** | All 6 Process Mining algorithms on WMS event logs |
+| LSTM Demand Forecasting | **PyTorch** | Granular SKU × Location × Hour demand prediction |
+| Order Batching | **scikit-learn KMeans** | Groups orders by shelf proximity |
+| Picker Routing (TSP) | **Google OR-Tools** | Shortest walking path — no backtracking |
+| VRPTW | **Google OR-Tools** | Rider assignment with 10-minute delivery windows |
+| DRMARL | **RLlib (Ray)** | Multi-agent RL for robot/picker/packer coordination |
+| DES Supervisor | Custom Mealy machine | Formal collision avoidance at aisle intersections |
+| Federated Learning | **Flower (flwr)** | Privacy-preserving training across client warehouses |
+
+### Backend Tech Stack
+
+| Layer | Technology |
+|---|---|
+| API Framework | FastAPI (Python 3.12) |
+| Real-Time | WebSockets + Redis Pub/Sub |
+| Task Queue | Celery + Redis Broker |
+| Message Bus | Apache Kafka |
+| Primary DB | PostgreSQL 16 |
+| Event Log DB | ClickHouse 24 (columnar OLAP) |
+| Cache | Redis 7 |
+| ML / Forecasting | PyTorch 2.4 + scikit-learn |
+| Process Mining | PM4Py |
+| Route Optimization | Google OR-Tools |
+| Multi-Agent RL | RLlib (Ray) |
+| Federated Learning | Flower (flwr) |
+| Containerization | Docker + Docker Compose |
+
+### Running the Backend
+
+```bash
+cd backend
+cp .env.example .env          # Configure your environment
+docker compose up -d          # Start PostgreSQL, ClickHouse, Redis, Kafka
+pip install -r requirements.txt
+uvicorn main:app --reload     # Start the API server
+
+# In a separate terminal:
+celery -A workers.celery_app worker --loglevel=info
+```
+
+API docs available at **http://localhost:8000/docs** (Swagger UI).
+
+### Frontend ↔ Backend Integration
+
+The Zustand store connects to the backend WebSocket on demand. While disconnected, the existing in-browser simulation engines run as fallback — the UI is fully functional without the backend.
+
+```typescript
+// Connect to live backend telemetry for warehouse WH-01
+useWarehouseStore.getState().connectToBackend('WH-01');
+
+// The store's isLiveMode flag tells the UI which data source is active
+const { isLiveMode, backendStatus } = useWarehouseStore();
 ```
 
 ---

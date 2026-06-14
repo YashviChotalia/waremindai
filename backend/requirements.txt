@@ -1,0 +1,42 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+python-dotenv==1.0.1
+pydantic==2.8.2
+pydantic-settings==2.4.0
+
+# Database
+sqlalchemy==2.0.35
+alembic==1.13.3
+asyncpg==0.29.0          # async PostgreSQL driver
+clickhouse-connect==0.8.1  # ClickHouse client
+
+# Cache & Messaging
+redis==5.1.0
+celery==5.4.0
+aiokafka==0.11.0         # async Kafka consumer/producer
+
+# Auth
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.10
+
+# ML & Algorithms
+torch==2.4.0
+scikit-learn==1.5.2
+numpy==2.1.1
+pandas==2.2.3
+
+# Process Mining
+pm4py==2.7.11.13
+
+# Route Optimization
+ortools==9.11.4210
+
+# Multi-Agent RL
+ray[rllib]==2.37.0
+
+# Federated Learning
+flwr==1.12.0
+
+# HTTP Client (for weather/traffic APIs)
+httpx==0.27.2

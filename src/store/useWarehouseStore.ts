@@ -4,6 +4,7 @@ import { analyzeBottlenecks, ProcessStage, BottleneckAnalysis } from '../engine/
 import { analyzeSlotting, SKUInfo, SlottingRecommendation } from '../engine/slottingEngine';
 import { generateForecasts, ForecastReport } from '../engine/forecastEngine';
 import { runSimulation, SimulationResult, SimulationInput } from '../engine/simulationEngine';
+import { wsService, WsMessage } from '../services/wsService';
 
 // Types definitions
 export interface WorkerInfo {
@@ -57,6 +58,8 @@ export interface Warehouse {
   dailyThroughputTrend: { date: string; throughput: number; capacity: number; savings: number }[];
 }
 
+export type BackendStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
+
 export interface WarehouseStore {
   portalRole: 'company' | 'warehouse' | 'none';
   selectedWarehouseId: string;
@@ -64,6 +67,10 @@ export interface WarehouseStore {
   timeTravelMode: 'past' | 'live' | 'forecast';
   timeTravelHour: string; // "Live" or "10:00 AM", "02:00 PM", "Tomorrow"
   theme: 'dark' | 'light';
+
+  // Backend connectivity
+  backendStatus: BackendStatus;
+  isLiveMode: boolean; // true = receiving real data from backend WebSocket
 
   // Simulations
   simulationInput: SimulationInput;
@@ -89,6 +96,10 @@ export interface WarehouseStore {
     };
     forecast: ForecastReport;
   };
+  // Backend integration
+  connectToBackend: (warehouseId: string) => void;
+  disconnectFromBackend: () => void;
+  _handleWsMessage: (msg: WsMessage) => void;
 }
 
 // Helper initial data
@@ -273,6 +284,10 @@ export const useWarehouseStore = create<WarehouseStore>((set, get) => ({
   timeTravelMode: 'live',
   timeTravelHour: 'Live',
   theme: 'dark',
+
+  // Backend connectivity (starts disconnected — simulation runs by default)
+  backendStatus: 'disconnected' as const,
+  isLiveMode: false,
 
   // Simulations
   simulationInput: {
@@ -480,5 +495,76 @@ export const useWarehouseStore = create<WarehouseStore>((set, get) => ({
       slotting,
       forecast
     };
-  }
+  },
+
+  // ─── Backend WebSocket Integration ───────────────────────────────────
+
+  connectToBackend: (warehouseId) => {
+    // Subscribe to connection status changes
+    wsService.onStatus((status) => {
+      set({ backendStatus: status, isLiveMode: status === 'connected' });
+    });
+
+    // Subscribe to typed messages from the backend
+    wsService.onMessage((msg) => {
+      get()._handleWsMessage(msg);
+    });
+
+    wsService.connect(warehouseId);
+  },
+
+  disconnectFromBackend: () => {
+    wsService.disconnect();
+    set({ backendStatus: 'disconnected', isLiveMode: false });
+  },
+
+  _handleWsMessage: (msg) => {
+    const warehouseId = msg.warehouse_id;
+    if (!warehouseId) return;
+
+    switch (msg.type) {
+      case 'STAGE_UPDATE': {
+        // Backend sends real stage pipeline data — replaces simulated stages
+        const payload = msg.payload as { stages: ProcessStage[] };
+        if (!payload?.stages) break;
+        set((state) => ({
+          warehouses: state.warehouses.map((wh) =>
+            wh.id === warehouseId ? { ...wh, stages: payload.stages } : wh
+          ),
+        }));
+        break;
+      }
+
+      case 'ALERT': {
+        // Backend pushes a new alert — add to the warehouse's alert list
+        const alert = msg.payload as IncidentAlert;
+        if (!alert) break;
+        set((state) => ({
+          warehouses: state.warehouses.map((wh) =>
+            wh.id === warehouseId
+              ? { ...wh, alerts: [alert, ...wh.alerts] }
+              : wh
+          ),
+        }));
+        break;
+      }
+
+      case 'HEALTH_UPDATE': {
+        // Backend sends recalculated health scores
+        const health = msg.payload as HealthScores;
+        if (!health) break;
+        set((state) => ({
+          warehouses: state.warehouses.map((wh) =>
+            wh.id === warehouseId ? { ...wh, health } : wh
+          ),
+        }));
+        break;
+      }
+
+      default:
+        // BOTTLENECK, FORECAST_UPDATE, SUPERVISOR_STATUS handled by
+        // individual page components via their own wsService.onMessage subscriptions
+        break;
+    }
+  },
 }));
