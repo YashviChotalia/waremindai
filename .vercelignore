@@ -1,0 +1,6 @@
+# Exclude the Python backend — it runs locally via Docker, not on Vercel
+backend/
+
+# Dev artifacts
+node_modules/
+.env
